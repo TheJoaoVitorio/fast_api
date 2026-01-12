@@ -8,7 +8,6 @@ from models.models import Pedido, Usuario
 
 
 order_router = APIRouter(prefix="/orders" , tags=["orders"], dependencies=[Depends(verify_token)])
-
 @order_router.get("/")
 async def orders(session: Session=Depends(get_session)):
     orders = session.query(Pedido).all()
