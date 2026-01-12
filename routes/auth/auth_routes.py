@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from schemas import UsuarioSchema, LoginSchema
 from jose import jwt, JWTError
 from datetime import datetime, timedelta,timezone
+from fastapi.security import OAuth2PasswordRequestForm
 
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
@@ -19,7 +20,7 @@ async def create_account(user: UsuarioSchema, session: Session=Depends(get_sessi
     if user_exists:
         raise HTTPException(status_code=400, detail="Usuário já existe")
     else:
-        password_crypt = bcrypt_context.hash(user.password)
+        password_crypt = bcrypt_context.hash(user.senha)
         new_user = Usuario(nome=user.nome,email=user.email, senha=password_crypt)
         session.add(new_user)
         session.commit()
@@ -59,6 +60,18 @@ async def login(login: LoginSchema, session: Session=Depends(get_session)):
                 "token_type" : "Bearer"
                 }
 
+@auth_router.post("/login_oauth")
+async def login_oauth(payload: OAuth2PasswordRequestForm = Depends(), session: Session=Depends(get_session)):
+    user = authenticate_user(payload.username, payload.password, session)
+    if not user:
+        raise HTTPException(status_code=400, detail="Usuário não encontrado ou credenciais inválidas")
+    else:
+        access_token = create_token(user.id) 
+        return {
+                "access_token" : access_token, 
+                "token_type" : "Bearer"
+                }
+
 
 @auth_router.get("/refresh_token")
 async def use_refresh_token(user: Usuario = Depends(verify_token)):  
@@ -67,8 +80,3 @@ async def use_refresh_token(user: Usuario = Depends(verify_token)):
             "access_token" : access_token, 
             "token_type" : "Bearer"
             }
-
-    # user = 
-    # user = session.query(Usuario).filter(Usuario.refresh_token == token).first()
-    # user = session.query(Usuario).filter(Usuario.id == 1).first()
-    # return {"message": "Refresh token endpoint"}

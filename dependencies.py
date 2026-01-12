@@ -6,10 +6,10 @@ from models.models import Usuario
 from jose import jwt, JWTError
 
 
-def verify_token(token: str=Depends(oauth2_scheme), session: Session=Depends(get_session)):
+def verify_token(token: str = Depends(oauth2_scheme), session: Session=Depends(get_session)):
     try:
         payload = jwt.decode(token=token, key=SECRET_KEY,algorithms=ALGORITHM)
-        user_id = payload.get("sub")        
+        user_id = int(payload.get("sub"))      
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
     
