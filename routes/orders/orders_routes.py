@@ -10,7 +10,7 @@ from models.models import Pedido, PedidoItens, Usuario
 order_router = APIRouter(prefix="/orders" , tags=["orders"], dependencies=[Depends(verify_token)])
 
 
-@order_router.get("/orders_all")
+@order_router.get("/all")
 async def all_orders(user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):
     if not user.admin:
         raise HTTPException(status_code=403, detail="Acesso negado. Apenas administradores podem acessar todos os pedidos.")
@@ -22,21 +22,33 @@ async def all_orders(user: Usuario = Depends(verify_token), session: Session=Dep
 
     return {"message" : "Sucesso", "orders": orders}
 
+@order_router.get("/order/view_order_user")
+async def view_all_order_user(user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):    
+    orders = session.query(Pedido).filter(Pedido.id_usuario == user.id).all()
+
+    if not orders:  
+        raise HTTPException(status_code=404, detail="Nenhum pedido encontrado")
+
+    return {
+        "message" : "Pedidos encontrados",
+        "count_order" : len(orders),
+        "orders" : orders
+    }
+
 @order_router.get("/order/{order_id}")
 async def view_order(order_id: int, user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):  
     order = session.query(Pedido).filter(Pedido.id == order_id).first()
 
-    if not user.admin and order.id_usuario != user.id:
-        raise HTTPException(status_code=401, detail="Não autorizado a completar este pedido")
-
     if not order:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
-        
+
+    if not user.admin and order.id_usuario != user.id:
+        raise HTTPException(status_code=401, detail="Não autorizado a visualizar esse pedido")
+
     return {
         "count_itens_order" : len(order.itens),
-        "order" : {order}
+        "order" : order
     }
-
 
 @order_router.post("/create_order")
 async def create_order(order: PedidoSchema, session: Session=Depends(get_session)):
@@ -68,8 +80,8 @@ async def cancel_order(order_id: int, user: Usuario = Depends(verify_token), ses
     session.refresh(order)
 
     return {
-        "message" : "Pedido cancelado com sucesso", 
-        "order": {order}
+        "message" : "Pedido cancelado with success", 
+        "order": order
         }
 
 @order_router.post("/order/finalize/{order_id}")
@@ -88,7 +100,7 @@ async def finalize_order(order_id: int, user: Usuario = Depends(verify_token), s
     
     return {
         "message" : "Pedido finalizado com sucesso",
-        "order" : {order}
+        "order" : order
         }
 
 @order_router.post("/order/add_item_to_order/{order_id}")
