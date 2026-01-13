@@ -100,6 +100,6 @@ async def remove_item_from_order(item_order_id: int, user: Usuario = Depends(ver
 
     return {
         "message" : "Item do pedido removido com sucesso",         
-        "order" : item_order.pedido,
-        "order_itens": item_order.pedido.itens
+        "count_itens_order": len(item_order.pedido.itens),
+        "order": item_order.pedido
     }
