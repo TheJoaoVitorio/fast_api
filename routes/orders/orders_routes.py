@@ -28,10 +28,17 @@ async def view_all_order_user(user: Usuario = Depends(verify_token), session: Se
 
     if not orders:  
         raise HTTPException(status_code=404, detail="Nenhum pedido encontrado")
+    
+    order_ids = [order.id for order in orders]
+
+    orders_itens = session.query(PedidoItens).filter(PedidoItens.id_pedido.in_(order_ids)).all()
+
+    total_price = sum(item.quantidade * item.preco_unitario for item in orders_itens)
 
     return {
         "message" : "Pedidos encontrados",
         "count_order" : len(orders),
+        "price_itens_order" : total_price,
         "orders" : orders
     }
 
