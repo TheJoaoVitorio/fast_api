@@ -22,6 +22,22 @@ async def all_orders(user: Usuario = Depends(verify_token), session: Session=Dep
 
     return {"message" : "Sucesso", "orders": orders}
 
+@order_router.get("/order/{order_id}")
+async def view_order(order_id: int, user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):  
+    order = session.query(Pedido).filter(Pedido.id == order_id).first()
+
+    if not user.admin and order.id_usuario != user.id:
+        raise HTTPException(status_code=401, detail="Não autorizado a completar este pedido")
+
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+        
+    return {
+        "count_itens_order" : len(order.itens),
+        "order" : {order}
+    }
+
+
 @order_router.post("/create_order")
 async def create_order(order: PedidoSchema, session: Session=Depends(get_session)):
     new_order = Pedido(id_usuario=order.id_usuario)
@@ -35,10 +51,10 @@ async def create_order(order: PedidoSchema, session: Session=Depends(get_session
 async def cancel_order(order_id: int, user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):
     order = session.query(Pedido).filter(Pedido.id == order_id).first()
 
-    if not order:
-        raise HTTPException(status_code=404, detail="Pedido não encontrado")  
     if not user.admin and order.id_usuario != user.id:
         raise HTTPException(status_code=403, detail="Não autorizado a cancelar este pedido")
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")  
     
 
     if user.admin:
@@ -56,14 +72,33 @@ async def cancel_order(order_id: int, user: Usuario = Depends(verify_token), ses
         "order": {order}
         }
 
-@order_router.post("/order/add_item_to_order/{order_id}")
-async def add_item_to_order(order_id: int, item_order: ItemPedidoSchema, user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):
+@order_router.post("/order/finalize/{order_id}")
+async def finalize_order(order_id: int, user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):
     order = session.query(Pedido).filter(Pedido.id == order_id).first()
+
+    if not user.admin and order.id_usuario != user.id:
+        raise HTTPException(status_code=403, detail="Não autorizado a finalizar o pedido")
     if not order:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
 
+    order.status = "FINALIZADO"
+
+    session.commit()
+    session.refresh(order)
+    
+    return {
+        "message" : "Pedido finalizado com sucesso",
+        "order" : {order}
+        }
+
+@order_router.post("/order/add_item_to_order/{order_id}")
+async def add_item_to_order(order_id: int, item_order: ItemPedidoSchema, user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):
+    order = session.query(Pedido).filter(Pedido.id == order_id).first()
+    
     if not user.admin and order.id_usuario != user.id:
         raise HTTPException(status_code=401, detail="Não autorizado a completar este pedido")
+    if not order:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
 
     data_order = PedidoItens(
         quantidade = item_order.quantidade,
@@ -87,11 +122,12 @@ async def add_item_to_order(order_id: int, item_order: ItemPedidoSchema, user: U
 @order_router.delete("/order/remove_item/{item_order_id}")
 async def remove_item_from_order(item_order_id: int, user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):
     item_order = session.query(PedidoItens).filter(PedidoItens.id == item_order_id).first()
-    if not item_order:
-        raise HTTPException(status_code=404, detail="Item do pedido não encontrado")
     
     if not user.admin and item_order.pedido.id_usuario != user.id:
         raise HTTPException(status_code=401, detail="Não autorizado a remover este item do pedido")
+    if not item_order:
+        raise HTTPException(status_code=404, detail="Item do pedido não encontrado")
+    
     
     session.delete(item_order)
     item_order.pedido.calcular_preco()
