@@ -1,8 +1,9 @@
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from connection.session_connection import get_session
 from dependencies import verify_token
 from sqlalchemy.orm import Session
-from schemas import ItemPedidoSchema, PedidoSchema
+from schemas import ItemPedidoSchema, PedidoSchema, ResponsePedidoSchema
 from models.models import Pedido, PedidoItens, Usuario
 
 
@@ -22,7 +23,7 @@ async def all_orders(user: Usuario = Depends(verify_token), session: Session=Dep
 
     return {"message" : "Sucesso", "orders": orders}
 
-@order_router.get("/order/view_order_user")
+@order_router.get("/order/view_order_user", response_model=List[ResponsePedidoSchema])
 async def view_all_order_user(user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):    
     orders = session.query(Pedido).filter(Pedido.id_usuario == user.id).all()
 
@@ -35,12 +36,13 @@ async def view_all_order_user(user: Usuario = Depends(verify_token), session: Se
 
     total_price = sum(item.quantidade * item.preco_unitario for item in orders_itens)
 
-    return {
-        "message" : "Pedidos encontrados",
-        "count_order" : len(orders),
-        "price_itens_order" : total_price,
-        "orders" : orders
-    }
+    return orders
+    # return {
+    #     "message" : "Pedidos encontrados",
+    #     "count_order" : len(orders),
+    #     "price_itens_order" : total_price,
+    #     "orders" : orders
+    # }
 
 @order_router.get("/order/{order_id}")
 async def view_order(order_id: int, user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):  
