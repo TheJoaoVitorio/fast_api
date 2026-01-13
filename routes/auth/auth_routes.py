@@ -21,7 +21,7 @@ async def create_account(user: UsuarioSchema, session: Session=Depends(get_sessi
         raise HTTPException(status_code=400, detail="Usuário já existe")
     else:
         password_crypt = bcrypt_context.hash(user.senha)
-        new_user = Usuario(nome=user.nome,email=user.email, senha=password_crypt)
+        new_user = Usuario(nome=user.nome,email=user.email, senha=password_crypt, ativo=user.ativo, admin=user.admin)
         session.add(new_user)
         session.commit()
         
@@ -47,7 +47,6 @@ def create_token(id_usuario: int, duration_token=timedelta(minutes=ACCESS_TOKEN_
 
 @auth_router.post("/login")
 async def login(login: LoginSchema, session: Session=Depends(get_session)):
-    # user = session.query(Usuario).filter(Usuario.email == login.email).first()
     user = authenticate_user(login.email, login.senha, session)
     if not user:
         raise HTTPException(status_code=400, detail="Usuário não encontrado ou credenciais inválidas")
