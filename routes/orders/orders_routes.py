@@ -99,7 +99,7 @@ async def remove_item_from_order(item_order_id: int, user: Usuario = Depends(ver
     session.refresh(item_order.pedido)
 
     return {
-        "message" : "Item do pedido removido com sucesso", 
-        "order_id": item_order.pedido.id,
-        "total_price": item_order.pedido.preco
+        "message" : "Item do pedido removido com sucesso",         
+        "order" : item_order.pedido,
+        "order_itens": item_order.pedido.itens
     }
