@@ -68,7 +68,7 @@ async def create_order(order: PedidoSchema, session: Session=Depends(get_session
 
     return {"message" : f"Pedido criado com sucesso, ID do pedido: {new_order.id}"}
 
-@order_router.delete("/order/cancel/{order_id}")
+@order_router.post("/order/cancel/{order_id}")
 async def cancel_order(order_id: int, user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):
     order = session.query(Pedido).filter(Pedido.id == order_id).first()
 
