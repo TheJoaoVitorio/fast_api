@@ -37,7 +37,7 @@ async def cancel_order(order_id: int, user: Usuario = Depends(verify_token), ses
 
     if not order:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")  
-    if order.id_usuario != user.id:
+    if not user.admin and order.id_usuario != user.id:
         raise HTTPException(status_code=403, detail="Não autorizado a cancelar este pedido")
     
 
@@ -56,13 +56,13 @@ async def cancel_order(order_id: int, user: Usuario = Depends(verify_token), ses
         "order": {order}
         }
 
-@order_router.post("/order/complete/{order_id}")
+@order_router.post("/order/add_item_to_order/{order_id}")
 async def add_item_to_order(order_id: int, item_order: ItemPedidoSchema, user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):
     order = session.query(Pedido).filter(Pedido.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
 
-    if order.id_usuario != user.id:
+    if not user.admin and order.id_usuario != user.id:
         raise HTTPException(status_code=401, detail="Não autorizado a completar este pedido")
 
     data_order = PedidoItens(
@@ -82,4 +82,24 @@ async def add_item_to_order(order_id: int, item_order: ItemPedidoSchema, user: U
         "message" : "Pedido cadastrado com sucesso", 
         "order_id": order.id,
         "total_price": order.preco
-        } 
+        }
+
+@order_router.delete("/order/remove_item/{item_order_id}")
+async def remove_item_from_order(item_order_id: int, user: Usuario = Depends(verify_token), session: Session=Depends(get_session)):
+    item_order = session.query(PedidoItens).filter(PedidoItens.id == item_order_id).first()
+    if not item_order:
+        raise HTTPException(status_code=404, detail="Item do pedido não encontrado")
+    
+    if not user.admin and item_order.pedido.id_usuario != user.id:
+        raise HTTPException(status_code=401, detail="Não autorizado a remover este item do pedido")
+    
+    session.delete(item_order)
+    item_order.pedido.calcular_preco()
+    session.commit()
+    session.refresh(item_order.pedido)
+
+    return {
+        "message" : "Item do pedido removido com sucesso", 
+        "order_id": item_order.pedido.id,
+        "total_price": item_order.pedido.preco
+    }
